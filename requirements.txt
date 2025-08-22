@@ -1,0 +1,15 @@
+asn1crypto==1.5.1
+# Editable Git install with no remote (asn1tools==0.125.0)
+-e /home/rails/P23/T21-asn1tools/TaskFolder/Repo
+bitstruct==8.21.0
+codespell==2.4.1
+diskcache==5.6.3
+humanfriendly==10.0
+libsnmp==3.0.1
+prompt_toolkit==3.0.51
+protobuf==6.32.0
+pyasn1==0.6.1
+pycodestyle==2.14.0
+pyparsing==3.2.3
+pysnmp==7.1.21
+wcwidth==0.2.13
