@@ -32,6 +32,8 @@ from .per import BMPString
 from .per import GraphicString
 from .per import TeletexString
 from .per import UniversalString
+from .per import ObjectDescriptor
+from .per import External
 from .per import Any
 from .per import Recursive
 from .permitted_alphabet import NUMERIC_STRING
@@ -352,11 +354,9 @@ class Compiler(per.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from UPER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from UPER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

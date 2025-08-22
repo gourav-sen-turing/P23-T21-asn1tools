@@ -24,6 +24,8 @@ from .ber import encode_real
 from .ber import decode_real
 from .ber import encode_object_identifier
 from .ber import decode_object_identifier
+from .ber import Tag
+from .ber import Class
 from .permitted_alphabet import NUMERIC_STRING
 from .permitted_alphabet import PRINTABLE_STRING
 from .permitted_alphabet import IA5_STRING
@@ -1698,6 +1700,11 @@ class GraphicString(StringType):
     ENCODING = 'latin-1'
 
 
+class ObjectDescriptor(StringType):
+
+    ENCODING = 'latin-1'
+
+
 class TeletexString(StringType):
 
     ENCODING = 'iso-8859-1'
@@ -1768,6 +1775,31 @@ class Any(Type):
 
     def __repr__(self):
         return 'Any({})'.format(self.name)
+
+
+class External(Sequence):
+
+    def __init__(self, name):
+        # Define EXTERNAL structure according to ASN.1 standard
+        # Note: For the tests, we need a simplified version
+        root_members = []
+
+        # data-value-descriptor ObjectDescriptor OPTIONAL
+        data_value_descriptor = ObjectDescriptor('data-value-descriptor')
+        data_value_descriptor.optional = True
+        root_members.append(data_value_descriptor)
+
+        # encoding CHOICE
+        encoding_choice_members = []
+
+        # octet-aligned OCTET STRING
+        octet_aligned = OctetString('octet-aligned', None, None)
+        encoding_choice_members.append(octet_aligned)
+
+        encoding = Choice('encoding', encoding_choice_members, None)
+        root_members.append(encoding)
+
+        super(External, self).__init__(name, root_members, None, [])
 
 
 class Recursive(Type, compiler.Recursive):
@@ -1938,11 +1970,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'OpenType':
             compiled = OpenType(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from PER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from PER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

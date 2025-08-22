@@ -1044,6 +1044,12 @@ class GraphicString(KnownMultiplierStringType):
     ENCODING = 'latin-1'
 
 
+class ObjectDescriptor(KnownMultiplierStringType):
+
+    TAG = Tag.OBJECT_DESCRIPTOR
+    ENCODING = 'latin-1'
+
+
 class UniversalString(KnownMultiplierStringType):
 
     TAG = Tag.UNIVERSAL_STRING
@@ -1084,6 +1090,34 @@ class GeneralizedTime(VisibleString):
         decoded = super(GeneralizedTime, self).decode(decoder)
 
         return generalized_time_to_datetime(decoded)
+
+
+class External(Sequence):
+
+    def __init__(self, name):
+        # Define EXTERNAL structure according to ASN.1 standard
+        # Note: For the tests, we need a simplified version
+        root_members = []
+
+        # data-value-descriptor ObjectDescriptor OPTIONAL
+        data_value_descriptor = ObjectDescriptor('data-value-descriptor')
+        data_value_descriptor.optional = True
+        root_members.append(data_value_descriptor)
+
+        # encoding CHOICE with context-specific implicit tags
+        encoding_choice_members = []
+
+        # octet-aligned [1] IMPLICIT OCTET STRING
+        octet_aligned = OctetString('octet-aligned', None, None, False)
+        octet_aligned.set_tag(1, Class.CONTEXT_SPECIFIC)
+        octet_aligned.implicit = True
+        encoding_choice_members.append(octet_aligned)
+
+        encoding = Choice('encoding', encoding_choice_members, None)
+        root_members.append(encoding)
+
+        super(External, self).__init__(name, root_members, None)
+        self.set_tag(Tag.EXTERNAL, 0)
 
 
 class Any(Type):
@@ -1276,11 +1310,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from OER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from OER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

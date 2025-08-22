@@ -28,6 +28,8 @@ from .ber import Choice
 from .ber import Any
 from .ber import AnyDefinedBy
 from .ber import Recursive
+from .ber import External
+from .ber import ObjectDescriptor
 from .ber import decode_length
 from .ber import encode_real
 from .ber import decode_real
@@ -449,11 +451,9 @@ class Compiler(ber.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from DER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from DER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

@@ -251,6 +251,34 @@ class CompiledType(compiler.CompiledType):
 
 class Compiler(compiler.Compiler):
 
+    def external_type_descriptor(self):
+        """Return the ASN.1 structure of EXTERNAL type."""
+        return {
+            'type': 'SEQUENCE',
+            'members': [
+                {
+                    'name': 'data-value-descriptor',
+                    'type': 'ObjectDescriptor',
+                    'optional': True
+                },
+                {
+                    'name': 'encoding',
+                    'type': 'CHOICE',
+                    'members': [
+                        {
+                            'name': 'octet-aligned',
+                            'type': 'OCTET STRING',
+                            'tag': {
+                                'number': 1,
+                                'class': 'CONTEXT_SPECIFIC',
+                                'kind': 'IMPLICIT'
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
     def process_type(self, type_name, type_descriptor, module_name):
         compiled_type = self.compile_type(type_name,
                                           type_descriptor,
