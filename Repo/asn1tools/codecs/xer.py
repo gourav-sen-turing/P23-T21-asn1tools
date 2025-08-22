@@ -527,10 +527,6 @@ class TeletexString(StringType):
     pass
 
 
-class ObjectDescriptor(GraphicString):
-    pass
-
-
 class UTCTime(Type):
 
     def __init__(self, name):
@@ -714,12 +710,11 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            compiled = Sequence(
-                name,
-                self.compile_members(self.external_type_descriptor()['members'],
-                                     module_name))
+            raise NotImplementedError(
+                "EXTERNAL type support has been removed from XER codec")
         elif type_name == 'ObjectDescriptor':
-            compiled = ObjectDescriptor(name)
+            raise NotImplementedError(
+                "ObjectDescriptor type support has been removed from XER codec")
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

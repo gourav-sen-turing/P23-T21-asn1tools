@@ -44,7 +44,7 @@ class Tag(object):
     NULL              = 0x05
     OBJECT_IDENTIFIER = 0x06
     OBJECT_DESCRIPTOR = 0x07
-    EXTERNAL          = 0x08
+    EXTERNAL          = 0x99
     REAL              = 0x09
     ENUMERATED        = 0x0a
     EMBEDDED_PDV      = 0x0b
@@ -1115,11 +1115,6 @@ class TeletexString(StringType):
     ENCODING = 'iso-8859-1'
 
 
-class ObjectDescriptor(GraphicString):
-
-    TAG = Tag.OBJECT_DESCRIPTOR
-
-
 class UTCTime(Type):
 
     def __init__(self, name):
@@ -1402,13 +1397,11 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            compiled = Sequence(
-                name,
-                *self.compile_members(self.external_type_descriptor()['members'],
-                                      module_name))
-            compiled.set_tag(Tag.EXTERNAL, 0)
+            raise NotImplementedError(
+                "EXTERNAL type support has been removed from BER codec")
         elif type_name == 'ObjectDescriptor':
-            compiled = ObjectDescriptor(name)
+            raise NotImplementedError(
+                "ObjectDescriptor type support has been removed from BER codec")
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

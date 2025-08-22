@@ -1056,11 +1056,6 @@ class TeletexString(KnownMultiplierStringType):
     ENCODING = 'iso-8859-1'
 
 
-class ObjectDescriptor(GraphicString):
-
-    TAG = Tag.OBJECT_DESCRIPTOR
-
-
 class UTCTime(VisibleString):
 
     TAG = Tag.UTC_TIME
@@ -1281,13 +1276,11 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            compiled = Sequence(
-                name,
-                *self.compile_members(self.external_type_descriptor()['members'],
-                                      module_name))
-            compiled.set_tag(Tag.EXTERNAL, 0)
+            raise NotImplementedError(
+                "EXTERNAL type support has been removed from OER codec")
         elif type_name == 'ObjectDescriptor':
-            compiled = ObjectDescriptor(name)
+            raise NotImplementedError(
+                "ObjectDescriptor type support has been removed from OER codec")
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,
