@@ -107,6 +107,61 @@ class Compiler(object):
     def types_backtrace(self):
         return self._types_backtrace
 
+    def external_type_descriptor(self):
+        """Return the ASN.1 EXTERNAL type descriptor."""
+        return {
+            'type': 'SEQUENCE',
+            'members': [
+                {
+                    'name': 'direct-reference',
+                    'type': 'OBJECT IDENTIFIER',
+                    'optional': True
+                },
+                {
+                    'name': 'indirect-reference',
+                    'type': 'INTEGER',
+                    'optional': True
+                },
+                {
+                    'name': 'data-value-descriptor',
+                    'type': 'ObjectDescriptor',
+                    'optional': True
+                },
+                {
+                    'name': 'encoding',
+                    'type': 'CHOICE',
+                    'members': [
+                        {
+                            'name': 'single-ASN1-type',
+                            'type': 'ANY',
+                            'tag': {
+                                'class': 'CONTEXT_SPECIFIC',
+                                'number': 0
+                            }
+                        },
+                        {
+                            'name': 'octet-aligned',
+                            'type': 'OCTET STRING',
+                            'implicit': True,
+                            'tag': {
+                                'class': 'CONTEXT_SPECIFIC',
+                                'number': 1
+                            }
+                        },
+                        {
+                            'name': 'arbitrary',
+                            'type': 'BIT STRING',
+                            'implicit': True,
+                            'tag': {
+                                'class': 'CONTEXT_SPECIFIC',
+                                'number': 2
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
     def process(self):
         self.pre_process()
 

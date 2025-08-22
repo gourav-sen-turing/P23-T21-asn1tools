@@ -44,7 +44,7 @@ class Tag(object):
     NULL              = 0x05
     OBJECT_IDENTIFIER = 0x06
     OBJECT_DESCRIPTOR = 0x07
-    EXTERNAL          = 0x99
+    EXTERNAL          = 0x08
     REAL              = 0x09
     ENUMERATED        = 0x0a
     EMBEDDED_PDV      = 0x0b
@@ -1055,6 +1055,76 @@ class Choice(Type):
             ', '.join([repr(member) for member in self.members]))
 
 
+class External(Type):
+    """EXTERNAL type implementation"""
+
+    def __init__(self, name):
+        super(External, self).__init__(name, 'EXTERNAL', Tag.EXTERNAL, Encoding.CONSTRUCTED)
+        self.is_constructed = True
+        self.implicit = False
+
+    def set_tag(self, number, flags):
+        super(External, self).set_tag(number, flags | Encoding.CONSTRUCTED)
+
+    def encode(self, data, encoded):
+        # Encode as constructed type
+        temp_encoded = bytearray()
+
+        # Handle data-value-descriptor if present
+        if 'data-value-descriptor' in data:
+            # ObjectDescriptor tag + content
+            descriptor = data['data-value-descriptor'].encode('latin-1')
+            temp_encoded.append(Tag.OBJECT_DESCRIPTOR)
+            temp_encoded.append(len(descriptor))
+            temp_encoded.extend(descriptor)
+
+        # Handle encoding choice
+        if 'encoding' in data:
+            choice_type, choice_data = data['encoding']
+            if choice_type == 'octet-aligned':
+                # Tag [1] IMPLICIT OCTET STRING
+                temp_encoded.append(0x81)  # Context-specific 1
+                temp_encoded.append(len(choice_data))
+                temp_encoded.extend(choice_data)
+            else:
+                raise EncodeError(f"Unsupported EXTERNAL encoding choice: {choice_type}")
+
+        # Add the EXTERNAL tag and content
+        encoded.extend(self.tag)
+        encoded.extend(encode_length_definite(len(temp_encoded)))
+        encoded.extend(temp_encoded)
+
+    def decode(self, data, offset):
+        offset = self.decode_tag(data, offset)
+        length, offset = decode_length_definite(data, offset)
+        end_offset = offset + length
+
+        decoded = {}
+
+        while offset < end_offset:
+            tag = data[offset]
+
+            if tag == Tag.OBJECT_DESCRIPTOR:
+                # data-value-descriptor field
+                offset += 1
+                desc_length, offset = decode_length_definite(data, offset)
+                decoded['data-value-descriptor'] = data[offset:offset + desc_length].decode('latin-1')
+                offset += desc_length
+            elif tag == 0x81:  # Context-specific 1 for octet-aligned
+                # encoding choice: octet-aligned
+                offset += 1
+                enc_length, offset = decode_length_definite(data, offset)
+                decoded['encoding'] = ('octet-aligned', bytes(data[offset:offset + enc_length]))
+                offset += enc_length
+            else:
+                raise DecodeError(f"Unexpected tag {tag:02x} in EXTERNAL at offset {offset}")
+
+        return decoded, end_offset
+
+    def __repr__(self):
+        return f'External({self.name})'
+
+
 class UTF8String(StringType):
 
     TAG = Tag.UTF8_STRING
@@ -1107,6 +1177,12 @@ class UniversalString(StringType):
 
     TAG = Tag.UNIVERSAL_STRING
     ENCODING = 'utf-32-be'
+
+
+class ObjectDescriptor(StringType):
+
+    TAG = Tag.OBJECT_DESCRIPTOR
+    ENCODING = 'latin-1'
 
 
 class TeletexString(StringType):
@@ -1397,11 +1473,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from BER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from BER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

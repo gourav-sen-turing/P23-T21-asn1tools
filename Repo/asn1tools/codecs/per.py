@@ -1709,6 +1709,56 @@ class UniversalString(StringType):
     LENGTH_MULTIPLIER = 4
 
 
+class ObjectDescriptor(StringType):
+
+    ENCODING = 'latin-1'
+
+
+class External(Type):
+    """EXTERNAL type implementation for PER"""
+
+    def __init__(self, name):
+        super(External, self).__init__(name, 'EXTERNAL')
+
+    def encode(self, data, encoder):
+        # PER encodes EXTERNAL as simplified structure
+        # Handle encoding choice
+        if 'encoding' in data:
+            choice_type, choice_data = data['encoding']
+
+            if choice_type == 'octet-aligned':
+                # Extension bit (0) + choice index (1) = binary 00001
+                encoder.append_non_negative_binary_integer(1, 5)
+                encoder.align()
+                # Length determinant + data
+                encoder.append_length_determinant(len(choice_data))
+                encoder.append_bytes(choice_data)
+            else:
+                raise EncodeError(f"Unsupported EXTERNAL encoding choice: {choice_type}")
+
+    def decode(self, decoder):
+        # Read extension bit + choice index (5 bits total)
+        value = decoder.read_non_negative_binary_integer(5)
+        ext_bit = (value >> 4) & 1
+        choice_index = value & 0x0f
+
+        decoder.align()
+
+        decoded = {}
+
+        if choice_index == 1:  # octet-aligned
+            # Length determinant + data
+            length = decoder.read_length_determinant()
+            decoded['encoding'] = ('octet-aligned', decoder.read_bytes(length))
+        else:
+            raise DecodeError(f"Unexpected choice index {choice_index} in EXTERNAL")
+
+        return decoded
+
+    def __repr__(self):
+        return f'External({self.name})'
+
+
 class UTCTime(VisibleString):
 
     def encode(self, data, encoder):
@@ -1938,11 +1988,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'OpenType':
             compiled = OpenType(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from PER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from PER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

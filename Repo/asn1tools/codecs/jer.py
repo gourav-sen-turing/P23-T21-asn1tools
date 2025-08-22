@@ -420,8 +420,58 @@ class UniversalString(StringType):
     pass
 
 
+class ObjectDescriptor(StringType):
+    pass
+
+
 class TeletexString(StringType):
     pass
+
+
+class External(Type):
+    """EXTERNAL type implementation for JER"""
+
+    def __init__(self, name):
+        super(External, self).__init__(name, 'EXTERNAL')
+
+    def encode(self, data):
+        encoded = {}
+
+        # Handle data-value-descriptor if present
+        if 'data-value-descriptor' in data:
+            encoded['data-value-descriptor'] = data['data-value-descriptor']
+
+        # Handle encoding choice
+        if 'encoding' in data:
+            choice_type, choice_data = data['encoding']
+
+            if choice_type == 'octet-aligned':
+                # Convert bytes to hex string
+                encoded['encoding'] = {
+                    'octet-aligned': binascii.hexlify(choice_data).decode('ascii').upper()
+                }
+            else:
+                raise EncodeError(f"Unsupported EXTERNAL encoding choice: {choice_type}")
+
+        return encoded
+
+    def decode(self, data):
+        decoded = {}
+
+        # Handle data-value-descriptor if present
+        if 'data-value-descriptor' in data:
+            decoded['data-value-descriptor'] = data['data-value-descriptor']
+
+        # Handle encoding choice
+        if 'encoding' in data:
+            encoding = data['encoding']
+            if 'octet-aligned' in encoding:
+                # Convert hex string to bytes
+                decoded['encoding'] = ('octet-aligned', binascii.unhexlify(encoding['octet-aligned']))
+            else:
+                raise DecodeError("Unsupported EXTERNAL encoding choice in JER")
+
+        return decoded
 
 
 class UTCTime(StringType):
@@ -589,11 +639,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from JER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from JER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

@@ -523,8 +523,68 @@ class UniversalString(StringType):
     pass
 
 
+class ObjectDescriptor(StringType):
+    pass
+
+
 class TeletexString(StringType):
     pass
+
+
+class External(Type):
+    """EXTERNAL type implementation for XER"""
+
+    def __init__(self, name):
+        super(External, self).__init__(name, 'EXTERNAL')
+
+    def encode(self, data):
+        element = ElementTree.Element(self.name)
+
+        # Handle data-value-descriptor if present
+        if 'data-value-descriptor' in data:
+            desc_element = ElementTree.SubElement(element, 'data-value-descriptor')
+            desc_element.text = data['data-value-descriptor']
+
+        # Handle encoding choice
+        if 'encoding' in data:
+            encoding_element = ElementTree.SubElement(element, 'encoding')
+            choice_type, choice_data = data['encoding']
+
+            if choice_type == 'octet-aligned':
+                octet_element = ElementTree.SubElement(encoding_element, 'octet-aligned')
+                # Convert bytes to hex string
+                octet_element.text = binascii.hexlify(choice_data).decode('ascii').upper()
+            else:
+                raise EncodeError(f"Unsupported EXTERNAL encoding choice: {choice_type}")
+
+        return element
+
+    def decode(self, element):
+        decoded = {}
+
+        # Handle data-value-descriptor if present
+        desc_element = element.find('data-value-descriptor')
+        if desc_element is not None:
+            decoded['data-value-descriptor'] = desc_element.text
+
+        # Handle encoding choice
+        encoding_element = element.find('encoding')
+        if encoding_element is not None:
+            # Check for octet-aligned
+            octet_element = encoding_element.find('octet-aligned')
+            if octet_element is not None:
+                # Convert hex string to bytes
+                decoded['encoding'] = ('octet-aligned', binascii.unhexlify(octet_element.text))
+            else:
+                raise DecodeError("Unsupported EXTERNAL encoding choice in XER")
+
+        return decoded
+
+    def encode_of(self, data):
+        element = self.encode(data)
+        element.text = '\n'
+        element.tail = '\n'
+        return element
 
 
 class UTCTime(Type):
@@ -710,11 +770,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from XER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from XER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

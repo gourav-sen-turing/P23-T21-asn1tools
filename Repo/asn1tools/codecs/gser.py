@@ -393,8 +393,40 @@ class TeletexString(Type):
         return 'TeletexString({})'.format(self.name)
 
 
-# ObjectDescriptor class removed to break EXTERNAL type tests
-# This was a subclass of GraphicString
+class ObjectDescriptor(GraphicString):
+
+    def __repr__(self):
+        return 'ObjectDescriptor({})'.format(self.name)
+
+
+class External(Type):
+    """EXTERNAL type implementation for GSER"""
+
+    def __init__(self, name):
+        super(External, self).__init__(name, 'EXTERNAL')
+
+    def encode(self, data, separator, indent):
+        encoded_parts = []
+
+        # Handle data-value-descriptor if present
+        if 'data-value-descriptor' in data:
+            encoded_parts.append('data-value-descriptor "{}"'.format(data['data-value-descriptor']))
+
+        # Handle encoding choice
+        if 'encoding' in data:
+            choice_type, choice_data = data['encoding']
+
+            if choice_type == 'octet-aligned':
+                # Convert bytes to hex string
+                hex_data = binascii.hexlify(choice_data).decode('ascii').upper()
+                encoded_parts.append("encoding octet-aligned : '{}'H".format(hex_data))
+            else:
+                raise EncodeError("Unsupported EXTERNAL encoding choice: {}".format(choice_type))
+
+        return '{{ {} }}'.format(', '.join(encoded_parts))
+
+    def __repr__(self):
+        return 'External({})'.format(self.name)
 
 
 class UTCTime(Type):
@@ -566,11 +598,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from GSER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from GSER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,

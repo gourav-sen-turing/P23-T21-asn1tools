@@ -1050,10 +1050,63 @@ class UniversalString(KnownMultiplierStringType):
     ENCODING = 'utf-32-be'
 
 
+class ObjectDescriptor(KnownMultiplierStringType):
+
+    TAG = Tag.OBJECT_DESCRIPTOR
+    ENCODING = 'latin-1'
+
+
 class TeletexString(KnownMultiplierStringType):
 
     TAG = Tag.T61_STRING
     ENCODING = 'iso-8859-1'
+
+
+class External(Type):
+    """EXTERNAL type implementation for OER"""
+
+    def __init__(self, name):
+        super(External, self).__init__(name, 'EXTERNAL', Tag.EXTERNAL)
+
+    def encode(self, data, encoder):
+        # OER encodes as SEQUENCE with extension marker
+        # Start with extension bit (0 = no extension)
+        encoder.append_bytes(b'\x00')
+
+        # Handle encoding choice
+        if 'encoding' in data:
+            choice_type, choice_data = data['encoding']
+
+            if choice_type == 'octet-aligned':
+                # Tag [1] for octet-aligned
+                encoder.append_bytes(b'\x81')
+                # Length and data
+                encoder.append_bytes(bytes([len(choice_data)]))
+                encoder.append_bytes(choice_data)
+            else:
+                raise EncodeError(f"Unsupported EXTERNAL encoding choice: {choice_type}")
+
+    def decode(self, decoder):
+        # Skip extension bit
+        ext_bit = decoder.read_bytes(1)[0]
+
+        decoded = {}
+
+        # Read tag
+        tag = decoder.read_bytes(1)[0]
+
+        if tag == 0x81:  # octet-aligned
+            # Read length
+            length = decoder.read_bytes(1)[0]
+            # Read data
+            decoded['encoding'] = ('octet-aligned', decoder.read_bytes(length))
+        else:
+            raise DecodeError(f"Unexpected tag {tag:02x} in EXTERNAL")
+
+        return decoded
+
+    def __repr__(self):
+        return f'External({self.name})'
 
 
 class UTCTime(VisibleString):
@@ -1276,11 +1329,9 @@ class Compiler(compiler.Compiler):
         elif type_name == 'NULL':
             compiled = Null(name)
         elif type_name == 'EXTERNAL':
-            raise NotImplementedError(
-                "EXTERNAL type support has been removed from OER codec")
+            compiled = External(name)
         elif type_name == 'ObjectDescriptor':
-            raise NotImplementedError(
-                "ObjectDescriptor type support has been removed from OER codec")
+            compiled = ObjectDescriptor(name)
         else:
             if type_name in self.types_backtrace:
                 compiled = Recursive(name,
